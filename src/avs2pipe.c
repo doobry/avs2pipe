@@ -123,9 +123,9 @@ audio_write(AVS_Clip *clip, AVS_ScriptEnvironment *env)
         // fail early if there is a problem instead of end of input
         if(step != count) break;
         wrote += count;
-        a2p_log(A2P_LOG_REPEAT, "written %lld seconds [%lld%%]... ", 
-            wrote / info->audio_samples_per_second,
-            (100 * wrote) / target);
+        //a2p_log(A2P_LOG_REPEAT, "written %lld seconds [%lld%%]... ", 
+        //    wrote / info->audio_samples_per_second,
+        //    (100 * wrote) / target);
     }
     fflush(stdout); // clear buffers before we exit
     a2p_log(A2P_LOG_REPEAT, "finished, wrote %lld seconds [%lld%%].\n", 
@@ -229,8 +229,8 @@ video_write(AVS_Clip *clip, AVS_ScriptEnvironment *env)
         // fail early if there is a problem instead of end of input
         if(step != count) break;
         wrote++;
-        a2p_log(A2P_LOG_REPEAT, "written %d frames [%d%%]... ", 
-            wrote, (100 * wrote) / target);
+        //a2p_log(A2P_LOG_REPEAT, "written %d frames [%d%%]... ", 
+        //    wrote, (100 * wrote) / target);
     }
     fflush(stdout); // clear buffers before we exit
     a2p_log(A2P_LOG_REPEAT, "finished, wrote %d frames [%d%%].\n", 
@@ -241,7 +241,7 @@ video_write(AVS_Clip *clip, AVS_ScriptEnvironment *env)
     }
 }
 
-int
+int __cdecl
 main (int argc, char *argv[])
 {
     AVS_ScriptEnvironment *env;
@@ -269,9 +269,9 @@ main (int argc, char *argv[])
 
     if(action == A2P_ACTION_NOTHING) {
         fprintf(stderr, "Usage: avs2pipe --[audio|video|info] input.avs\n");
-        fprintf(stderr, "   --audio output wav extensible format audio to stdout.\n");
-        fprintf(stderr, "   --video output yuv4mpeg2 format video to stdout.\n");
-        fprintf(stderr, "   --info  output information about aviscript clip.\n");
+        fprintf(stderr, "   --audio - output wav extensible format audio to stdout.\n");
+        fprintf(stderr, "   --video - output yuv4mpeg2 format video to stdout.\n");
+        fprintf(stderr, "   --info  - output information about aviscript clip.\n");
         exit(2);
     }
 

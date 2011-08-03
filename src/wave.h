@@ -18,6 +18,9 @@
  *
  */
 
+// Wave File Specifications 
+// http://www-mmsp.ece.mcgill.ca/documents/audioformats/wave/wave.html
+
 #ifndef WAVE_H
 #define WAVE_H
 
