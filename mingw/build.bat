@@ -1,11 +1,11 @@
 @ECHO OFF
 
-SET PATH=C:\MinGW\bin
+SET PATH=C:\PROGRA~2\Qt\qtcreator-2.1.0\mingw\bin
 
-pushd ..\src
+ECHO Starting AviSynth 2.5 Version Build
+mingw32-make
+ECHO.
 
-ECHO Running GCC
-gcc -O2 -Wall avs2pipe.c common.c wave.c avisynth25\avisynth.lib -o ..\avs2pipe_gcc.exe
-strip ..\avs2pipe_gcc.exe
-
-popd
+ECHO Starting AviSynth 2.6 Version Build
+mingw32-make "VERSION=26"
+ECHO.
