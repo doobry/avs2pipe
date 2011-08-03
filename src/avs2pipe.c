@@ -90,10 +90,11 @@ audio_write(AVS_Clip *clip, AVS_ScriptEnvironment *env)
         exit(2);
     }
 
-    if(info->sample_type == AVS_SAMPLE_FLOAT)
+    if(info->sample_type == AVS_SAMPLE_FLOAT) {
         format = WAVE_FORMAT_IEEE_FLOAT;
-    else
+    } else {
         format = WAVE_FORMAT_PCM;
+    }
 
     if(_setmode(_fileno(stdout), _O_BINARY) == -1) {
         a2p_log(A2P_LOG_ERROR, "cannot switch stdout to binary mode.\n", 0);
@@ -116,8 +117,7 @@ audio_write(AVS_Clip *clip, AVS_ScriptEnvironment *env)
     size = avs_bytes_per_channel_sample(info) * info->nchannels;
     buff = malloc(count * size);
     for (i = 0; i < target; i += count) {
-        if(target - i < count)
-            count = (size_t) (target - i);
+        if(target - i < count) count = (size_t) (target - i);
         avs_get_audio(clip, buff, i, count);
         step = fwrite(buff, size, count, stdout);
         // fail early if there is a problem instead of end of input
@@ -134,7 +134,8 @@ audio_write(AVS_Clip *clip, AVS_ScriptEnvironment *env)
     free(buff);
     free(header);
     if(wrote != target) {
-        a2p_log(A2P_LOG_ERROR, "only wrote %lld of %lld samples.\n", wrote, target);
+        a2p_log(A2P_LOG_ERROR, "only wrote %lld of %lld samples.\n",
+                wrote, target);
         exit(2);
     }
 }
@@ -149,17 +150,25 @@ info_write(AVS_Clip *clip, AVS_ScriptEnvironment *env)
     if(avs_has_video(info)) {
         fprintf(stdout, "v:width       %d\n", info->width);
         fprintf(stdout, "v:height      %d\n", info->height);
-        fprintf(stdout, "v:fps         %d/%d\n", info->fps_numerator, info->fps_denominator);
+        fprintf(stdout, "v:fps         %d/%d\n",
+                info->fps_numerator, info->fps_denominator);
         fprintf(stdout, "v:frames      %d\n", info->num_frames);
-        fprintf(stdout, "v:duration    %d\n", info->num_frames * info->fps_denominator /  info->fps_numerator);
+        fprintf(stdout, "v:duration    %d\n",
+                info->num_frames * info->fps_denominator / info->fps_numerator);
+        fprintf(stdout, "v:interlaced  %s\n", !avs_is_field_based(info) ?
+                "no" : avs_is_tff(info) ? "tff" : "bff");
+        fprintf(stdout, "v:pixel_type  %x\n", info->pixel_type);
     }
     if(avs_has_audio(info)) {
         fprintf(stdout, "a:sample_rate %d\n", info->audio_samples_per_second);
-        fprintf(stdout, "a:format      %s\n", info->sample_type == AVS_SAMPLE_FLOAT ? "float" : "pcm");
-        fprintf(stdout, "a:bit_depth   %d\n", avs_bytes_per_channel_sample(info) * 8);
+        fprintf(stdout, "a:format      %s\n",
+                info->sample_type == AVS_SAMPLE_FLOAT ? "float" : "pcm");
+        fprintf(stdout, "a:bit_depth   %d\n",
+                avs_bytes_per_channel_sample(info) * 8);
         fprintf(stdout, "a:channels    %d\n", info->nchannels);
         fprintf(stdout, "a:samples     %lld\n", info->num_audio_samples);
-        fprintf(stdout, "a:duration    %lld\n", info->num_audio_samples / info->audio_samples_per_second);
+        fprintf(stdout, "a:duration    %lld\n",
+                info->num_audio_samples / info->audio_samples_per_second);
     }
 }
 
@@ -197,17 +206,24 @@ video_write(AVS_Clip *clip, AVS_ScriptEnvironment *env)
         exit(2);
     }
 
-    a2p_log(A2P_LOG_INFO, "writing %d frames of %d/%d fps, %dx%d video.\n",
+    a2p_log(A2P_LOG_INFO, "writing %d frames of %d/%d fps, %dx%d %s video.\n",
             info->num_frames, info->fps_numerator, info->fps_denominator,
-            info->width, info->height);
+            info->width, info->height, !avs_is_field_based(info) ?
+            "progressive" : avs_is_tff(info) ? "tff" : "bff");
 
-    // YUV4MPEG2 header
-    fprintf(stdout, "YUV4MPEG2 W%d H%d F%ld:%ld Ip A0:0\n", info->width,
-            info->height, info->fps_numerator, info->fps_denominator);
+    // YUV4MPEG2 header http://wiki.multimedia.cx/index.php?title=YUV4MPEG2
+    fprintf(stdout, "YUV4MPEG2 W%d H%d F%ld:%ld I%s A0:0 C420\n", info->width,
+            info->height, info->fps_numerator, info->fps_denominator,
+            !avs_is_field_based(info) ? "p" : avs_is_tff(info) ? "t" : "b");
     fflush(stdout);
 
     // method from avs2yuv converted to c
-    count = info->width * info->height * 3 / 2;
+    if(avs_is_yv12(info)) {
+        count = info->width * info->height * 3 / 2;
+    } else {
+        a2p_log(A2P_LOG_ERROR, "unknown color space.\n");
+        exit(2);
+    }
     target = info->num_frames;
     wrote = 0;
     for(f = 0; f < target; f++) {
@@ -257,13 +273,14 @@ main (int argc, char *argv[])
     action = A2P_ACTION_NOTHING;
 
     if(argc == 3) {
-        if(strcmp(argv[1], "--audio") == 0)
+        if(strcmp(argv[1], "--audio") == 0) {
             action = A2P_ACTION_AUDIO;
-        else
-        if(strcmp(argv[1], "--video") == 0)
+        } else if(strcmp(argv[1], "--video") == 0) {
             action = A2P_ACTION_VIDEO;
-        if(strcmp(argv[1], "--info") == 0)
+        }
+        if(strcmp(argv[1], "--info") == 0) {
             action = A2P_ACTION_INFO;
+        }
         input = argv[2];
     }
 
@@ -278,14 +295,13 @@ main (int argc, char *argv[])
     env = avs_create_script_environment(AVISYNTH_INTERFACE_VERSION);
     clip = avisynth_source(input, env);
 
-    if(action == A2P_ACTION_AUDIO)
+    if(action == A2P_ACTION_AUDIO) {
         audio_write(clip, env);
-    else
-    if(action == A2P_ACTION_VIDEO)
+    } else if(action == A2P_ACTION_VIDEO) {
         video_write(clip, env);
-    else
-    if(action == A2P_ACTION_INFO)
+    } else if(action == A2P_ACTION_INFO) {
         info_write(clip, env);
+    }
 
     avs_release_clip(clip);
     avs_delete_script_environment(env);

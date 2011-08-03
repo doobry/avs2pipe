@@ -21,6 +21,9 @@ src\mingw for MinGWon Windows.
 
 The YUV4MPEG2 output is inspired by Avs2YUV by Loren Merritt, it is basically
 the same method, converted from C++ to C, so it should provide identical output.
+It does have the addition of picking up the flags for interlaced content from
+AssumeFieldBased(), AssumeTFF() etc. and will pass this on to programs such as
+x264 eliminating the need to add flags to the encoder command.
 
 The WAV output is coded from scratch using specs from "the internet" and so
 could be full of problems, altho I have not found any in testing yet.
@@ -31,8 +34,8 @@ Examples:
 avs2pipe --info input.avs
 avs2pipe --info input.avs > info.txt
 
-avs2pipe --video input.avs | x264 --stdin y4m - --output video.aac
-avs2pipe --audio input.avs | neroAacEnc -q 0.25 -if - -of audio.mp4
+avs2pipe --video input.avs | x264 --stdin y4m - --output video.h264
+avs2pipe --audio input.avs | neroAacEnc -q 0.25 -if - -of audio.aac
 
 avs2pipe --audio input.avs > output.wav
 
@@ -45,14 +48,14 @@ avs2pipe_vs.exe  - compiled with Visual Studio 2010 Express cl 16.00.30319.01
 
 Download:
 
-http://doobrymedia.com/avs2pipe-0.0.1.zip
+http://doobrymedia.com/avs2pipe-0.0.2.zip
 
 
 Changes:
 
-Pre-Alpha - Initial Release on doom10.org
+Version 0.0.2 - Added Support for Interlaced Output, AssumeFieldBased etc.
 Version 0.0.1 - Removed Progress Output for "Speed"
-
+Pre-Alpha - Initial Release on doom10.org
 
 Forum Links:
 
