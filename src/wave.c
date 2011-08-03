@@ -46,8 +46,8 @@ wave_create_riff_header(WaveFormatType format,
                         uint64_t       samples)
 {
     WaveRiffHeader *header = malloc(sizeof(*header));
-    WaveGuid sub_format = {WAVE_FORMAT_PCM, 0x0000, 0x0010, 0x80,
-                       0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71};
+    WaveGuid sub_format = {WAVE_FORMAT_PCM, 0x0000, 0x0010,
+                            {0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71} };
     uint32_t data_size, riff_size, fact_samples;
 
     sub_format.d1 = format;
@@ -108,8 +108,8 @@ wave_create_rf64_header(WaveFormatType format,
                         uint64_t       samples)
 {
     WaveRf64Header *header = malloc(sizeof(*header));
-    WaveGuid sub_format = {WAVE_FORMAT_PCM, 0x0000, 0x0010, 0x80,
-                       0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71};
+    WaveGuid sub_format = {WAVE_FORMAT_PCM, 0x0000, 0x0010,
+                            {0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71} };
 
     sub_format.d1 = format;
     wave_guid_copy(&header->format.sub_format, &sub_format);

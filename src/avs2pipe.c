@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2010 Chris Beswick <chris.beswick@gmail.com>
+ * Copyright (C) 2010-2011 Chris Beswick <chris.beswick@gmail.com>
  *
  * YUV4MPEG2 output inspired by Avs2YUV by Loren Merritt
  *
@@ -26,7 +26,11 @@
 #include <fcntl.h>
 #include <io.h>
 #include <string.h>
-#include "avisynth_c.h"
+#ifdef A2P_AVS26
+    #include "avisynth26/avisynth_c.h"
+#else
+    #include "avisynth25/avisynth_c.h"
+#endif
 #include "common.h"
 #include "wave.h"
 
@@ -63,7 +67,6 @@ avisynth_source(char *file, AVS_ScriptEnvironment *env)
 
     if(!avs_is_clip(val_return)) {
         a2p_log(A2P_LOG_ERROR, "avs files return value is not a clip.\n", 0);
-        exit(2);
     }
 
     clip = avs_take_clip(val_return, env);
@@ -74,7 +77,7 @@ avisynth_source(char *file, AVS_ScriptEnvironment *env)
 }
 
 void
-audio_write(AVS_Clip *clip, AVS_ScriptEnvironment *env)
+do_audio(AVS_Clip *clip, AVS_ScriptEnvironment *env)
 {
     const AVS_VideoInfo *info;
     WaveRiffHeader *header;
@@ -87,7 +90,6 @@ audio_write(AVS_Clip *clip, AVS_ScriptEnvironment *env)
 
     if(!avs_has_audio(info)) {
         a2p_log(A2P_LOG_ERROR, "clip has no audio.\n", 0);
-        exit(2);
     }
 
     if(info->sample_type == AVS_SAMPLE_FLOAT) {
@@ -98,11 +100,10 @@ audio_write(AVS_Clip *clip, AVS_ScriptEnvironment *env)
 
     if(_setmode(_fileno(stdout), _O_BINARY) == -1) {
         a2p_log(A2P_LOG_ERROR, "cannot switch stdout to binary mode.\n", 0);
-        exit(2);
     }
 
-    a2p_log(A2P_LOG_INFO, "writing %lld seconds of %d Hz, %d channel audio.\n",
-            info->num_audio_samples / info->audio_samples_per_second,
+    a2p_log(A2P_LOG_INFO, "writing %I64d seconds of %d Hz, %d channel audio.\n",
+            (info->num_audio_samples / info->audio_samples_per_second),
             info->audio_samples_per_second, info->nchannels);
 
     header = wave_create_riff_header(format, info->nchannels,
@@ -128,111 +129,114 @@ audio_write(AVS_Clip *clip, AVS_ScriptEnvironment *env)
         //    (100 * wrote) / target);
     }
     fflush(stdout); // clear buffers before we exit
-    a2p_log(A2P_LOG_REPEAT, "finished, wrote %lld seconds [%lld%%].\n", 
+    a2p_log(A2P_LOG_REPEAT, "finished, wrote %I64u seconds [%I64u%%].\n", 
         wrote / info->audio_samples_per_second,
         (100 * wrote) / target);
     free(buff);
     free(header);
     if(wrote != target) {
-        a2p_log(A2P_LOG_ERROR, "only wrote %lld of %lld samples.\n",
+        a2p_log(A2P_LOG_ERROR, "only wrote %I64u of %I64u samples.\n",
                 wrote, target);
-        exit(2);
     }
 }
 
 void
-info_write(AVS_Clip *clip, AVS_ScriptEnvironment *env)
-{
-    const AVS_VideoInfo *info;
-
-    info = avs_get_video_info(clip);
-
-    if(avs_has_video(info)) {
-        fprintf(stdout, "v:width       %d\n", info->width);
-        fprintf(stdout, "v:height      %d\n", info->height);
-        fprintf(stdout, "v:fps         %d/%d\n",
-                info->fps_numerator, info->fps_denominator);
-        fprintf(stdout, "v:frames      %d\n", info->num_frames);
-        fprintf(stdout, "v:duration    %d\n",
-                info->num_frames * info->fps_denominator / info->fps_numerator);
-        fprintf(stdout, "v:interlaced  %s\n", !avs_is_field_based(info) ?
-                "no" : avs_is_tff(info) ? "tff" : "bff");
-        fprintf(stdout, "v:pixel_type  %x\n", info->pixel_type);
-    }
-    if(avs_has_audio(info)) {
-        fprintf(stdout, "a:sample_rate %d\n", info->audio_samples_per_second);
-        fprintf(stdout, "a:format      %s\n",
-                info->sample_type == AVS_SAMPLE_FLOAT ? "float" : "pcm");
-        fprintf(stdout, "a:bit_depth   %d\n",
-                avs_bytes_per_channel_sample(info) * 8);
-        fprintf(stdout, "a:channels    %d\n", info->nchannels);
-        fprintf(stdout, "a:samples     %lld\n", info->num_audio_samples);
-        fprintf(stdout, "a:duration    %lld\n",
-                info->num_audio_samples / info->audio_samples_per_second);
-    }
-}
-
-void
-video_write(AVS_Clip *clip, AVS_ScriptEnvironment *env)
+do_video(AVS_Clip *clip, AVS_ScriptEnvironment *env)
 {
     const AVS_VideoInfo *info;
     AVS_VideoFrame *frame;
     static const int planes[] = {AVS_PLANAR_Y, AVS_PLANAR_U, AVS_PLANAR_V};
     const BYTE *buff; // BYTE from avisynth_c.h not windows headers
+    char * yuv_csp;
     size_t count, step;
-    int32_t w, h, f, p, i, pitch;
+    int32_t w, h, f, p, i, pitch, h_uv, v_uv, np;
     int32_t wrote, target;
 
     info = avs_get_video_info(clip);
 
     if(!avs_has_video(info)) {
         a2p_log(A2P_LOG_ERROR, "clip has no video.\n");
-        exit(2);
     }
 
-    // ensure video is yv12
-    if(avs_has_video(info) && !avs_is_yv12(info)) {
-        a2p_log(A2P_LOG_INFO, "converting video to yv12.\n", 0);
-        clip = avisynth_filter(clip, env, "ConvertToYV12");
-        info = avs_get_video_info(clip);
-        if(!avs_is_yv12(info)) {
-            a2p_log(A2P_LOG_ERROR, "failed to convert video to yv12.\n", 0);
-            exit(2);
-        }
+    // Number of planes normally 3;
+    np = 3;
+
+	// Setup Correct Colorspace Handling
+	// Thanks to Chikuzen @ Doom9 Forums
+    switch(info->pixel_type) {
+        #ifdef A2P_AVS26
+        case AVS_CS_BGR32:
+        case AVS_CS_BGR24:
+            a2p_log(A2P_LOG_INFO, "converting video to yv24.\n", 0);
+            clip = avisynth_filter(clip, env, "ConvertToYV24");
+            info = avs_get_video_info(clip);
+        case AVS_CS_YV24:
+            yuv_csp = "444";
+            count = info->width * info->height * 3;
+            h_uv = 0;
+            v_uv = 0;
+            break;
+        case AVS_CS_YUY2:
+            a2p_log(A2P_LOG_INFO, "converting video to yv16.\n", 0);
+            clip = avisynth_filter(clip, env, "ConvertToYV16");
+            info = avs_get_video_info(clip);
+        case AVS_CS_YV16:
+            yuv_csp = "422";
+            count = info->width * info->height * 2;
+            h_uv = 1;
+            v_uv = 0;
+            break;
+        case AVS_CS_YV411:
+            yuv_csp = "411";
+            count = info->width * info->height * 3 / 2;
+            h_uv = 2;
+            v_uv = 0;
+            break;
+        case AVS_CS_Y8:
+            yuv_csp = "mono";
+            count = info->width * info->height;
+            h_uv = 0;
+            v_uv = 0;
+            np = 1; // special case only one plane for mono
+            break;
+        #endif        
+        default:
+            a2p_log(A2P_LOG_INFO, "converting video to yv12.\n", 0);
+            clip = avisynth_filter(clip, env, "ConvertToYV12");
+            info = avs_get_video_info(clip);
+        case AVS_CS_YV12:
+            yuv_csp = "420";
+            count = info->width * info->height * 3 / 2;
+            h_uv = 1;
+            v_uv = 1;
     }
 
     if(_setmode(_fileno(stdout), _O_BINARY) == -1) {
         a2p_log(A2P_LOG_ERROR, "cannot switch stdout to binary mode.\n");
-        exit(2);
     }
 
-    a2p_log(A2P_LOG_INFO, "writing %d frames of %d/%d fps, %dx%d %s video.\n",
+    a2p_log(A2P_LOG_INFO, "writing %d frames of %d/%d fps, %dx%d YUV%s %s video.\n",
             info->num_frames, info->fps_numerator, info->fps_denominator,
-            info->width, info->height, !avs_is_field_based(info) ?
-            "progressive" : avs_is_tff(info) ? "tff" : "bff");
+            info->width, info->height, yuv_csp, !avs_is_field_based(info) ?
+             "progressive" : !avs_is_bff(info) ? "tff" : "bff"); // default tff
 
     // YUV4MPEG2 header http://wiki.multimedia.cx/index.php?title=YUV4MPEG2
-    fprintf(stdout, "YUV4MPEG2 W%d H%d F%ld:%ld I%s A0:0 C420\n", info->width,
+    fprintf(stdout, "YUV4MPEG2 W%d H%d F%u:%u I%s A0:0 C%s\n", info->width,
             info->height, info->fps_numerator, info->fps_denominator,
-            !avs_is_field_based(info) ? "p" : avs_is_tff(info) ? "t" : "b");
+            !avs_is_field_based(info) ? "p" : !avs_is_bff(info) ? "t" : "b",
+            yuv_csp);
     fflush(stdout);
-
+    
     // method from avs2yuv converted to c
-    if(avs_is_yv12(info)) {
-        count = info->width * info->height * 3 / 2;
-    } else {
-        a2p_log(A2P_LOG_ERROR, "unknown color space.\n");
-        exit(2);
-    }
     target = info->num_frames;
     wrote = 0;
     for(f = 0; f < target; f++) {
         step = 0;
         frame = avs_get_frame(clip, f);
         fprintf(stdout, "FRAME\n");
-        for(p = 0; p < 3; p++) {
-            w = info->width >> (p ? 1 : 0);
-            h = info->height >> (p ? 1 : 0);
+        for(p = 0; p < np; p++) {
+            w = info->width >> (p ? h_uv : 0);
+            h = info->height >> (p ? v_uv : 0);
             pitch = avs_get_pitch_p(frame, planes[p]);
             buff = avs_get_read_ptr_p(frame, planes[p]);
             for(i = 0; i < h; i++) {
@@ -253,8 +257,195 @@ video_write(AVS_Clip *clip, AVS_ScriptEnvironment *env)
         wrote, (100 * wrote) / target);
     if(wrote != target) {
         a2p_log(A2P_LOG_ERROR, "only wrote %d of %d frames.\n", wrote, target);
-        exit(2);
     }
+}
+
+void
+do_info(AVS_Clip *clip, AVS_ScriptEnvironment *env)
+{
+    const AVS_VideoInfo *info;
+
+    info = avs_get_video_info(clip);
+
+    if(avs_has_video(info)) {
+        fprintf(stdout, "v:width       %d\n", info->width);
+        fprintf(stdout, "v:height      %d\n", info->height);
+        fprintf(stdout, "v:fps         %d/%d\n",
+                info->fps_numerator, info->fps_denominator);
+        fprintf(stdout, "v:frames      %d\n", info->num_frames);
+        fprintf(stdout, "v:duration    %d\n",
+                info->num_frames * info->fps_denominator / info->fps_numerator);
+        fprintf(stdout, "v:interlaced  %s\n", !avs_is_field_based(info) ?
+                "no" : !avs_is_bff(info) ? "tff" : "bff");
+        fprintf(stdout, "v:pixel_type  %x\n", info->pixel_type);
+    }
+    if(avs_has_audio(info)) {
+        fprintf(stdout, "a:sample_rate %d\n", info->audio_samples_per_second);
+        fprintf(stdout, "a:format      %s\n",
+                info->sample_type == AVS_SAMPLE_FLOAT ? "float" : "pcm");
+        fprintf(stdout, "a:bit_depth   %d\n",
+                avs_bytes_per_channel_sample(info) * 8);
+        fprintf(stdout, "a:channels    %d\n", info->nchannels);
+        fprintf(stdout, "a:samples     %I64d\n", info->num_audio_samples);
+        fprintf(stdout, "a:duration    %I64d\n",
+                info->num_audio_samples / info->audio_samples_per_second);
+    }
+}
+
+void
+do_x264bd(AVS_Clip *clip, AVS_ScriptEnvironment *env)
+{
+    // x264 arguments from http://sites.google.com/site/x264bluray/
+    // resolutions, fps... http://forum.doom9.org/showthread.php?t=154533
+    //   vbv-maxrate reduced to 15000 from 40000 for DVD playback
+    //   ref added to all settings for simplicity
+
+    const AVS_VideoInfo *info;
+	enum res {
+        A2P_RES_1080,
+        A2P_RES_720,
+        A2P_RES_576,
+        A2P_RES_480,
+        A2P_RES_UNKNOWN
+    } res;
+    enum fps {
+        A2P_FPS_59, // 59.94
+        A2P_FPS_50, // 50
+        A2P_FPS_30, // 30
+        A2P_FPS_29, // 29.97
+        A2P_FPS_25, // 25
+        A2P_FPS_24, // 24
+        A2P_FPS_23, // 23.976
+        A2P_FPS_UNKNOWN
+    } fps;
+
+    int keyint;
+    int ref;
+    char * args;
+    char * color;
+
+    info = avs_get_video_info(clip);
+
+    // Initial format guess, setting ref and color.
+    // max safe width or height = 32767
+    // width << 16         | height
+    // 0000 0000 0000 0000   0000 0000  0000 0000
+    switch((info->width << 16) | info->height) {
+        case (1920 << 16) | 1080: // HD1080
+        case (1440 << 16) | 1080:
+            res = A2P_RES_1080;
+            ref = 4;
+            color = "bt709";
+            break;
+        case (1280 << 16) | 720: // HD720
+            res = A2P_RES_720;
+            ref = 6;
+            color = "bt709";
+            break;
+        case (720 << 16) | 576: // PAL
+            res = A2P_RES_576;
+            ref = 6;
+            color = "bt470bg";
+            break;
+        case (720 << 16) | 480: // NTSC
+            res = A2P_RES_480;
+            ref = 6;
+            color = "smpte170m";
+            break;
+        default:
+            res = A2P_RES_UNKNOWN;
+            ref = 0;
+            color = "";
+            break;
+    }
+
+    // See http://avisynth.org/mediawiki/FPS
+    // fps_numerator << 16 | fps_denominator
+    // 0000 0000 0000 0000   0000 0000  0000 0000
+    switch((info->fps_numerator << 16) | info->fps_denominator) {
+        case ((24000 << 16) | 1001): // ntsc_film ~23.976
+        case ((2997 << 16) | 125): // ntsc_round_film =23.976
+            fps = A2P_FPS_23;
+            keyint = 24;
+            break;
+        case ((24 << 16) | 1): // film =24
+            fps = A2P_FPS_24;
+            keyint = 24;
+            break;
+        case ((25 << 16) | 1): // pal_film, pal_video =25
+            fps = A2P_FPS_25;
+            keyint = 25;
+            break;
+        case ((30000 << 16) | 1001): // ntsc_video ~29.970
+        case ((2997 << 16) | 100): // ntsc_round_video =29.97
+            fps = A2P_FPS_29;
+            keyint = 30;
+            break;
+        case ((30 << 16) | 1): // 1080i30 exists in enc guide =30
+            fps = A2P_FPS_30;
+            keyint = 30;
+            break;
+        case ((50 << 16) | 1): // pal_double =50
+            fps = A2P_FPS_50;
+            keyint = 50;
+            break;
+        case ((60000 << 16) | 1001): // ntsc_double ~59.940
+        case ((2997 << 16) | 50): // ntsc_round_double =59.94
+            fps = A2P_FPS_59;
+            keyint = 60;
+            break;
+            break;
+        default:
+            fps = A2P_FPS_UNKNOWN;
+            keyint = 0;
+            break;
+    }
+	
+    // Ensure video is supported... this is messy
+    // and set any special case arguments.
+    // res << 16           | fps << 8  | avs_is_field_based
+    // 0000 0000 0000 0000   0000 0000   0000 0000
+    switch((res << 16) | fps << 8 | avs_is_field_based(info)) {
+        case ((A2P_RES_1080 << 16) | (A2P_FPS_25 << 8) | 1):
+        case ((A2P_RES_1080 << 16) | (A2P_FPS_29 << 8) | 1):
+        case ((A2P_RES_1080 << 16) | (A2P_FPS_30 << 8) | 1):
+        case ((A2P_RES_576 << 16) | (A2P_FPS_25 << 8) | 1):
+        case ((A2P_RES_480 << 16) | (A2P_FPS_29 << 8) | 1):
+            args = !avs_is_bff(info) ? "--tff" : "--bff"; // default to tff
+            break;
+        case ((A2P_RES_1080 << 16) | (A2P_FPS_29 << 8) | 0):
+        case ((A2P_RES_1080 << 16) | (A2P_FPS_25 << 8) | 0):
+        case ((A2P_RES_576 << 16) | (A2P_FPS_25 << 8) | 0):
+            args = "--fake-interlaced --pic-struct";
+            break;
+        case ((A2P_RES_720 << 16) | (A2P_FPS_29 << 8) | 0):
+        case ((A2P_RES_720 << 16) | (A2P_FPS_25 << 8) | 0):
+            args = "--pulldown double";
+            break;
+        case ((A2P_RES_480 << 16) | (A2P_FPS_29 << 8) | 0):
+            args = "--pulldown 32 --fake-interlaced";
+            break;
+        case ((A2P_RES_1080 << 16) | (A2P_FPS_23 << 8) | 0):
+        case ((A2P_RES_1080 << 16) | (A2P_FPS_24 << 8) | 0):
+        case ((A2P_RES_720 << 16) | (A2P_FPS_23 << 8) | 0):
+        case ((A2P_RES_720 << 16) | (A2P_FPS_24 << 8) | 0):
+        case ((A2P_RES_720 << 16) | (A2P_FPS_50 << 8) | 0):
+        case ((A2P_RES_720 << 16) | (A2P_FPS_59 << 8) | 0):
+            args = "";
+            break;
+        default:
+            args = "";
+            a2p_log(A2P_LOG_ERROR, "%dx%d @ %d/%d fps not supported.\n",
+                    info->width, info->height,
+                    info->fps_numerator, info->fps_denominator);
+            break;
+    }
+
+    fprintf(stdout, "--weightp 1 --bframes 3 --nal-hrd vbr --vbv-maxrate 15000"
+            " --vbv-bufsize 30000 --level 4.1 --keyint %d --b-pyramid strict"
+            " --open-gop bluray --slices 4 --ref %d %s --aud --colorprim "
+            "\"%s\" --transfer \"%s\" --colormatrix \"%s\"",
+            keyint, ref, args, color, color, color);
 }
 
 int __cdecl
@@ -267,40 +458,58 @@ main (int argc, char *argv[])
         A2P_ACTION_AUDIO,
         A2P_ACTION_VIDEO,
         A2P_ACTION_INFO,
+        A2P_ACTION_X264BD,
         A2P_ACTION_NOTHING    
     } action;
 
     action = A2P_ACTION_NOTHING;
 
     if(argc == 3) {
-        if(strcmp(argv[1], "--audio") == 0) {
+        if(strcmp(argv[1], "audio") == 0) {
             action = A2P_ACTION_AUDIO;
-        } else if(strcmp(argv[1], "--video") == 0) {
+        } else if(strcmp(argv[1], "video") == 0) {
             action = A2P_ACTION_VIDEO;
-        }
-        if(strcmp(argv[1], "--info") == 0) {
+        } else if(strcmp(argv[1], "info") == 0) {
             action = A2P_ACTION_INFO;
+        } else if(strcmp(argv[1], "x264bd") == 0) {
+            action = A2P_ACTION_X264BD;
         }
         input = argv[2];
     }
 
     if(action == A2P_ACTION_NOTHING) {
-        fprintf(stderr, "Usage: avs2pipe --[audio|video|info] input.avs\n");
-        fprintf(stderr, "   --audio - output wav extensible format audio to stdout.\n");
-        fprintf(stderr, "   --video - output yuv4mpeg2 format video to stdout.\n");
-        fprintf(stderr, "   --info  - output information about aviscript clip.\n");
+       
+        #ifdef A2P_AVS26
+            fprintf(stderr, "avs2pipe for AviSynth 2.6.0 Alpha 2\n");
+        #else
+            fprintf(stderr, "avs2pipe for AviSynth 2.5.8\n");
+        #endif
+        fprintf(stderr, "Usage: avs2pipe [audio|video|info|x264] input.avs\n");
+        fprintf(stderr, "   audio  - output wav extensible format audio to stdout.\n");
+        fprintf(stderr, "   video  - output yuv4mpeg2 format video to stdout.\n");
+        fprintf(stderr, "   info   - output information about aviscript clip.\n");
+        fprintf(stderr, "   x264bd - suggest x264 arguments for bluray disc encoding.\n");
         exit(2);
     }
 
     env = avs_create_script_environment(AVISYNTH_INTERFACE_VERSION);
     clip = avisynth_source(input, env);
 
-    if(action == A2P_ACTION_AUDIO) {
-        audio_write(clip, env);
-    } else if(action == A2P_ACTION_VIDEO) {
-        video_write(clip, env);
-    } else if(action == A2P_ACTION_INFO) {
-        info_write(clip, env);
+    switch(action) {
+        case A2P_ACTION_AUDIO:
+            do_audio(clip, env);
+            break;
+        case A2P_ACTION_VIDEO:
+            do_video(clip, env);
+            break;
+        case A2P_ACTION_INFO:
+            do_info(clip, env);
+            break;
+        case A2P_ACTION_X264BD:
+            do_x264bd(clip, env);
+            break;
+        case A2P_ACTION_NOTHING: // Removing GCC warning, this action is handled above
+            break;
     }
 
     avs_release_clip(clip);

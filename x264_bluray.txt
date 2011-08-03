@@ -1,0 +1,29 @@
+Taken from http://sites.google.com/site/x264bluray/
+
+  vbv-maxrate reduced to 15000 from 40000 for DVD playback
+  ref added to all settings for simplicity
+
+720i does not exist, see http://en.wikipedia.org/wiki/720p
+
+
+1080i25     --weightp 1 --bframes 3 --nal-hrd vbr --vbv-maxrate 40000 --vbv-bufsize 30000 --level 4.1 --keyint 25 --b-pyramid strict --open-gop bluray --slices 4 --ref 4 --tff                           --aud --colorprim "bt709"     --transfer "bt709"     --colormatrix "bt709"
+576i25      --weightp 1 --bframes 3 --nal-hrd vbr --vbv-maxrate 40000 --vbv-bufsize 30000 --level 4.1 --keyint 25 --b-pyramid strict --open-gop bluray --slices 4 --ref 6 --tff                           --aud --colorprim "bt470bg"   --transfer "bt470bg"   --colormatrix "bt470bg"
+1080i29.97  --weightp 1 --bframes 3 --nal-hrd vbr --vbv-maxrate 40000 --vbv-bufsize 30000 --level 4.1 --keyint 30 --b-pyramid strict --open-gop bluray --slices 4 --ref 4 --tff                           --aud --colorprim "bt709"     --transfer "bt709"     --colormatrix "bt709"
+1080i30     --weightp 1 --bframes 3 --nal-hrd vbr --vbv-maxrate 40000 --vbv-bufsize 30000 --level 4.1 --keyint 30 --b-pyramid strict --open-gop bluray --slices 4 --ref 4 --tff                           --aud --colorprim "bt709"     --transfer "bt709"     --colormatrix "bt709"
+480i29.97   --weightp 1 --bframes 3 --nal-hrd vbr --vbv-maxrate 40000 --vbv-bufsize 30000 --level 4.1 --keyint 30 --b-pyramid strict --open-gop bluray --slices 4 --ref 6 --tff                           --aud --colorprim "smpte170m" --transfer "smpte170m" --colormatrix "smpte170m"
+
+1080p29.97  --weightp 1 --bframes 3 --nal-hrd vbr --vbv-maxrate 40000 --vbv-bufsize 30000 --level 4.1 --keyint 30 --b-pyramid strict --open-gop bluray --slices 4 --ref 4 --fake-interlaced --pic-struct  --aud --colorprim "bt709"     --transfer "bt709"     --colormatrix "bt709"
+1080p25     --weightp 1 --bframes 3 --nal-hrd vbr --vbv-maxrate 40000 --vbv-bufsize 30000 --level 4.1 --keyint 25 --b-pyramid strict --open-gop bluray --slices 4 --ref 4 --fake-interlaced --pic-struct  --aud --colorprim "bt709"     --transfer "bt709"     --colormatrix "bt709"
+576p25      --weightp 1 --bframes 3 --nal-hrd vbr --vbv-maxrate 40000 --vbv-bufsize 30000 --level 4.1 --keyint 25 --b-pyramid strict --open-gop bluray --slices 4 --ref 6 --fake-interlaced --pic-struct  --aud --colorprim "bt470bg"   --transfer "bt470bg"   --colormatrix "bt470bg"
+
+720p25      --weightp 1 --bframes 3 --nal-hrd vbr --vbv-maxrate 40000 --vbv-bufsize 30000 --level 4.1 --keyint 25 --b-pyramid strict --open-gop bluray --slices 4 --ref 6 --pulldown double               --aud --colorprim "bt709"     --transfer "bt709"     --colormatrix "bt709"
+720p29.97   --weightp 1 --bframes 3 --nal-hrd vbr --vbv-maxrate 40000 --vbv-bufsize 30000 --level 4.1 --keyint 30 --b-pyramid strict --open-gop bluray --slices 4 --ref 6 --pulldown double               --aud --colorprim "bt709"     --transfer "bt709"     --colormatrix "bt709"
+
+480p23.976  --weightp 1 --bframes 3 --nal-hrd vbr --vbv-maxrate 40000 --vbv-bufsize 30000 --level 4.1 --keyint 24 --b-pyramid strict --open-gop bluray --slices 4 --ref 6 --pulldown 32 --fake-interlaced --aud --colorprim "smpte170m" --transfer "smpte170m" --colormatrix "smpte170m"
+
+1080p23.976 --weightp 1 --bframes 3 --nal-hrd vbr --vbv-maxrate 40000 --vbv-bufsize 30000 --level 4.1 --keyint 24 --b-pyramid strict --open-gop bluray --slices 4 --ref 4                                 --aud --colorprim "bt709"     --transfer "bt709"     --colormatrix "bt709"
+1080p24     --weightp 1 --bframes 3 --nal-hrd vbr --vbv-maxrate 40000 --vbv-bufsize 30000 --level 4.1 --keyint 24 --b-pyramid strict --open-gop bluray --slices 4 --ref 4                                 --aud --colorprim "bt709"     --transfer "bt709"     --colormatrix "bt709"
+720p23.976  --weightp 1 --bframes 3 --nal-hrd vbr --vbv-maxrate 40000 --vbv-bufsize 30000 --level 4.1 --keyint 24 --b-pyramid strict --open-gop bluray --slices 4 --ref 6                                 --aud --colorprim "bt709"     --transfer "bt709"     --colormatrix "bt709"
+720p24      --weightp 1 --bframes 3 --nal-hrd vbr --vbv-maxrate 40000 --vbv-bufsize 30000 --level 4.1 --keyint 24 --b-pyramid strict --open-gop bluray --slices 4 --ref 6                                 --aud --colorprim "bt709"     --transfer "bt709"     --colormatrix "bt709"
+720p50      --weightp 1 --bframes 3 --nal-hrd vbr --vbv-maxrate 40000 --vbv-bufsize 30000 --level 4.1 --keyint 50 --b-pyramid strict --open-gop bluray --slices 4 --ref 6                                 --aud --colorprim "bt709"     --transfer "bt709"     --colormatrix "bt709"
+720p59.94   --weightp 1 --bframes 3 --nal-hrd vbr --vbv-maxrate 40000 --vbv-bufsize 30000 --level 4.1 --keyint 60 --b-pyramid strict --open-gop bluray --slices 4 --ref 6                                 --aud --colorprim "bt709"     --transfer "bt709"     --colormatrix "bt709"

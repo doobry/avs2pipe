@@ -9,39 +9,24 @@
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
     </Filter>
-    <Filter Include="Resource Files">
-      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
-      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
-    </Filter>
-    <Filter Include="Library Files">
-      <UniqueIdentifier>{d38e9616-ce56-400f-a68c-d533aa5620cf}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\avisynth_c.h">
+    <ClInclude Include="..\src\common.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\common.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\wave.h">
+    <ClInclude Include="..\src\wave.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\avs2pipe.c">
+    <ClCompile Include="..\src\avs2pipe.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\common.c">
+    <ClCompile Include="..\src\common.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\wave.c">
+    <ClCompile Include="..\src\wave.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <Library Include="..\avisynth.lib">
-      <Filter>Library Files</Filter>
-    </Library>
   </ItemGroup>
 </Project>

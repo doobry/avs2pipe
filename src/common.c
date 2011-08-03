@@ -20,6 +20,7 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "common.h"
 
 void a2p_log(int level, const char *message, ...)
@@ -51,4 +52,5 @@ void a2p_log(int level, const char *message, ...)
     vfprintf(stderr, message, args);
 
     va_end(args);
+    if(level == A2P_LOG_ERROR) exit(2);
 }
