@@ -39,7 +39,7 @@ void a2p_log(int level, const char *message, ...)
             prefix = "warn";
             break;
         case A2P_LOG_INFO:
-        case A2P_LOG_REPEAT:
+        // case A2P_LOG_REPEAT:
             prefix = "info";
             break;
         default:
@@ -47,7 +47,7 @@ void a2p_log(int level, const char *message, ...)
             break;
     }
 
-    if(level == A2P_LOG_REPEAT) fprintf(stderr, "\r");
+    // if(level == A2P_LOG_REPEAT) fprintf(stderr, "\r");
     fprintf(stderr, "avs2pipe [%s]: ", prefix);
     vfprintf(stderr, message, args);
 

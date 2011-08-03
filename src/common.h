@@ -25,7 +25,7 @@ enum A2pLogLevel {
     A2P_LOG_ERROR,
     A2P_LOG_WARNING,
     A2P_LOG_INFO,
-    A2P_LOG_REPEAT
+    //A2P_LOG_REPEAT
 };
 
 void a2p_log(int level, const char *message, ...);
